@@ -1,0 +1,279 @@
+const CARD_LIBRARY = [
+  { id: "strike-1", name: "Strike", cost: 1, power: 3, text: "Simple melee attack." },
+  { id: "guard-1", name: "Guard", cost: 1, power: 2, text: "Defensive stance." },
+  { id: "focus-1", name: "Focus", cost: 2, power: 4, text: "Rising momentum." },
+  { id: "arcane-1", name: "Arcane Burst", cost: 2, power: 5, text: "Burst damage." },
+  { id: "vanguard-1", name: "Vanguard", cost: 3, power: 6, text: "Frontline pressure." },
+  { id: "surge-1", name: "Power Surge", cost: 3, power: 7, text: "Aggressive finishing strike." },
+  { id: "shield-1", name: "Aegis", cost: 2, power: 3, text: "Protective card." },
+  { id: "tide-1", name: "Tidal Rush", cost: 4, power: 8, text: "High-impact assault." }
+];
+
+function shuffle(array) {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function createDeck() {
+  return shuffle(CARD_LIBRARY.map((card) => ({ ...card, id: `${card.id}-${Math.random().toString(16).slice(2, 8)}` })));
+}
+
+function createPlayer(name, isHuman = true) {
+  const deck = createDeck();
+  return {
+    id: name.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    isHuman,
+    hp: 30,
+    mana: 3,
+    maxMana: 3,
+    hand: [],
+    board: [],
+    discard: [],
+    deck,
+  };
+}
+
+function createInitialState() {
+  const state = {
+    turn: 1,
+    currentPlayer: 1,
+    log: ["The duel begins. A decisive clash is underway."],
+    players: [createPlayer("Player"), createPlayer("Opponent", false)],
+  };
+
+  state.players.forEach((player) => {
+    for (let i = 0; i < 3; i += 1) {
+      drawCard(player);
+    }
+  });
+
+  return state;
+}
+
+function drawCard(player) {
+  const nextCard = player.deck.pop();
+  if (!nextCard) {
+    player.discard.push({ name: "Exhausted", cost: 0, power: 0, text: "No cards left in deck." });
+    return null;
+  }
+
+  player.hand.push(nextCard);
+  return nextCard;
+}
+
+function getActivePlayer(state) {
+  return state.players[state.currentPlayer - 1];
+}
+
+function getOpponentPlayer(state) {
+  return state.players[(state.currentPlayer === 1 ? 1 : 0)];
+}
+
+function addLog(state, text) {
+  state.log.unshift(text);
+  state.log = state.log.slice(0, 10);
+}
+
+function renderCard(card, options = {}) {
+  const container = document.createElement("div");
+  container.className = "card";
+
+  const header = document.createElement("div");
+  header.className = "card-header";
+
+  const nameEl = document.createElement("span");
+  nameEl.className = "card-name";
+  nameEl.textContent = card.name;
+
+  const costEl = document.createElement("span");
+  costEl.className = "card-cost";
+  costEl.textContent = card.cost;
+
+  const powerEl = document.createElement("span");
+  powerEl.className = "card-power";
+  powerEl.textContent = card.power;
+
+  header.append(nameEl, costEl, powerEl);
+
+  const textEl = document.createElement("div");
+  textEl.className = "card-text";
+  textEl.textContent = card.text;
+
+  const actions = document.createElement("div");
+  actions.className = "card-actions";
+
+  if (options.play) {
+    const playBtn = document.createElement("button");
+    playBtn.textContent = "Play";
+    playBtn.addEventListener("click", () => options.play());
+    actions.appendChild(playBtn);
+  }
+
+  if (options.attack) {
+    const attackBtn = document.createElement("button");
+    attackBtn.textContent = "Attack";
+    attackBtn.addEventListener("click", () => options.attack());
+    actions.appendChild(attackBtn);
+  }
+
+  container.append(header, textEl, actions);
+  return container;
+}
+
+function renderZone(zoneEl, cards, renderOptions = {}) {
+  zoneEl.innerHTML = "";
+
+  if (!cards || cards.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "card empty";
+    empty.textContent = "Empty";
+    zoneEl.appendChild(empty);
+    return;
+  }
+
+  cards.forEach((card, index) => {
+    const renderedCard = renderCard(card, {
+      play: renderOptions.play ? () => renderOptions.play(index) : null,
+      attack: renderOptions.attack ? () => renderOptions.attack(index) : null,
+    });
+    zoneEl.appendChild(renderedCard);
+  });
+}
+
+function renderBoard(state) {
+  const player = state.players[0];
+  const opponent = state.players[1];
+
+  document.getElementById("turn-indicator").textContent = String(state.turn);
+  document.getElementById("player-hp").textContent = String(player.hp);
+  document.getElementById("player-mana").textContent = String(player.mana);
+  document.getElementById("opponent-hp").textContent = String(opponent.hp);
+  document.getElementById("opponent-mana").textContent = String(opponent.mana);
+
+  renderZone(document.getElementById("player-hand"), player.hand, {
+    play: (index) => playCardToBoard(state, 0, index),
+  });
+
+  renderZone(document.getElementById("opponent-hand"), opponent.hand, {
+    play: () => null,
+  });
+
+  renderZone(document.getElementById("player-board"), player.board, {
+    attack: (index) => resolveAttack(state, 0, index),
+  });
+
+  renderZone(document.getElementById("opponent-board"), opponent.board, {
+    attack: () => null,
+  });
+
+  const logEl = document.getElementById("battle-log");
+  logEl.innerHTML = "";
+  state.log.forEach((entry) => {
+    const li = document.createElement("li");
+    li.textContent = entry;
+    logEl.appendChild(li);
+  });
+}
+
+function playCardToBoard(state, playerIndex, handIndex) {
+  const actingPlayer = state.players[playerIndex];
+  const card = actingPlayer.hand[handIndex];
+
+  if (!card) return;
+  if (actingPlayer.mana < card.cost) {
+    addLog(state, `${actingPlayer.name} does not have enough mana to play ${card.name}.`);
+    renderBoard(state);
+    return;
+  }
+
+  actingPlayer.mana -= card.cost;
+  actingPlayer.hand.splice(handIndex, 1);
+  actingPlayer.board.push(card);
+
+  addLog(state, `${actingPlayer.name} plays ${card.name} for ${card.cost} mana.`);
+  renderBoard(state);
+}
+
+function resolveAttack(state, attackerIndex, unitIndex) {
+  const attacker = state.players[attackerIndex];
+  const defender = state.players[attackerIndex === 0 ? 1 : 0];
+  const unit = attacker.board[unitIndex];
+
+  if (!unit) return;
+
+  defender.hp = Math.max(0, defender.hp - unit.power);
+  addLog(state, `${attacker.name} attacks with ${unit.name} for ${unit.power} damage.`);
+
+  if (defender.hp <= 0) {
+    addLog(state, `${attacker.name} wins the duel!`);
+    return;
+  }
+
+  const counter = defender.board[0];
+  if (counter) {
+    attacker.hp = Math.max(0, attacker.hp - counter.power);
+    addLog(state, `${defender.name}'s ${counter.name} counters for ${counter.power} damage.`);
+  }
+
+  if (attacker.hp <= 0) {
+    addLog(state, `${defender.name} wins the duel!`);
+  }
+
+  renderBoard(state);
+}
+
+function endTurn(state) {
+  const currentIndex = state.currentPlayer - 1;
+  const nextIndex = currentIndex === 0 ? 1 : 0;
+
+  const currentPlayer = state.players[currentIndex];
+  const nextPlayer = state.players[nextIndex];
+
+  currentPlayer.mana = currentPlayer.maxMana;
+  nextPlayer.mana = nextPlayer.maxMana;
+
+  drawCard(nextPlayer);
+  state.currentPlayer = nextIndex + 1;
+  state.turn += 1;
+
+  addLog(state, `${nextPlayer.name} takes the initiative.`);
+  renderBoard(state);
+}
+
+function resetGame() {
+  const freshState = createInitialState();
+  renderBoard(freshState);
+  return freshState;
+}
+
+let state = createInitialState();
+
+renderBoard(state);
+
+document.getElementById("draw-card").addEventListener("click", () => {
+  const activePlayer = getActivePlayer(state);
+  const drawn = drawCard(activePlayer);
+
+  if (drawn) {
+    addLog(state, `${activePlayer.name} draws ${drawn.name}.`);
+  } else {
+    addLog(state, `${activePlayer.name} tries to draw, but the deck is empty.`);
+  }
+
+  renderBoard(state);
+});
+
+document.getElementById("end-turn").addEventListener("click", () => {
+  if (state.log[0] && state.log[0].includes("wins the duel")) return;
+  endTurn(state);
+});
+
+document.getElementById("reset-game").addEventListener("click", () => {
+  state = resetGame();
+});
+

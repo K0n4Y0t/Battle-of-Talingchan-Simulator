@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Battle of Talingchan Simulator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Talingchan Duel</p>
+          <h1>Battle of Talingchan</h1>
+        </div>
+        <div class="turn-box">
+          <span>Turn</span>
+          <strong id="turn-indicator">1</strong>
+        </div>
+      </header>
+
+      <section class="control-panel">
+        <button id="draw-card">Draw Card</button>
+        <button id="end-turn">End Turn</button>
+        <button id="reset-game">Reset Battle</button>
+      </section>
+
+      <main class="battlefield">
+        <section class="player-panel opponent-panel">
+          <div class="panel-header">
+            <h2>Opponent</h2>
+            <div class="mini-stats">
+              <span>HP <strong id="opponent-hp">30</strong></span>
+              <span>Mana <strong id="opponent-mana">3</strong></span>
+            </div>
+          </div>
+          <div class="zone sparse">
+            <div class="zone-label">Hand</div>
+            <div id="opponent-hand" class="card-row hand-row"></div>
+          </div>
+          <div class="zone">
+            <div class="zone-label">Board</div>
+            <div id="opponent-board" class="board-row"></div>
+          </div>
+        </section>
+
+        <section class="player-panel player-panel-current">
+          <div class="panel-header">
+            <h2>Player</h2>
+            <div class="mini-stats">
+              <span>HP <strong id="player-hp">30</strong></span>
+              <span>Mana <strong id="player-mana">3</strong></span>
+            </div>
+          </div>
+          <div class="zone">
+            <div class="zone-label">Board</div>
+            <div id="player-board" class="board-row"></div>
+          </div>
+          <div class="zone sparse">
+            <div class="zone-label">Hand</div>
+            <div id="player-hand" class="card-row hand-row"></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="battle-log-panel">
+        <div class="log-header">Battle Log</div>
+        <ul id="battle-log" class="battle-log"></ul>
+      </aside>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
